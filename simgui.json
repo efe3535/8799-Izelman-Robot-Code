@@ -1,0 +1,39 @@
+{
+  "HALProvider": {
+    "Other Devices": {
+      "Victor SPX[0]": {
+        "header": {
+          "open": true
+        }
+      },
+      "Victor SPX[1]": {
+        "header": {
+          "open": true
+        }
+      },
+      "Victor SPX[2]": {
+        "header": {
+          "open": true
+        }
+      },
+      "Victor SPX[3]": {
+        "header": {
+          "open": true
+        }
+      }
+    },
+    "RoboRIO": {
+      "RoboRIO Input": {
+        "open": true
+      }
+    }
+  },
+  "NTProvider": {
+    "types": {
+      "/FMSInfo": "FMSInfo"
+    }
+  },
+  "NetworkTables Info": {
+    "visible": true
+  }
+}
