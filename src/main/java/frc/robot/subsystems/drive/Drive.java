@@ -39,10 +39,15 @@ public class Drive extends SubsystemBase {
         rearRight.setInverted(!isReversed);
 
         this.m_drive = new DifferentialDrive(frontLeft, frontRight);
+        this.m_drive.setDeadband(0.05);
+    }
+
+    public void stop() {
+        this.m_drive.stopMotor();
     }
 
     public void drive(double leftMotor, double rightMotor) {
-        this.m_drive.arcadeDrive(leftMotor * 1, rightMotor * 1);
+        this.m_drive.arcadeDrive(leftMotor, rightMotor);
     }
 
     public void tankDrive(double leftMotor, double rightMotor) {

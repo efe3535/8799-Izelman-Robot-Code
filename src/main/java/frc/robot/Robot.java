@@ -6,6 +6,7 @@ package frc.robot;
 
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -16,8 +17,9 @@ import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
 import edu.wpi.first.math.trajectory.Trajectory;
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.DataLogManager;
+import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.SPI;
-import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+
 import frc.robot.subsystems.drive.Drive;
 
 import javax.xml.crypto.Data;
@@ -38,7 +40,7 @@ import com.revrobotics.CANSparkLowLevel.MotorType;
  */
 public class Robot extends TimedRobot {
 
-  private final CommandXboxController m_controller = new CommandXboxController(0);
+  private final XboxController m_controller = new XboxController(0);
 
   private final CANSparkMax m_rearLeft = new CANSparkMax(3, MotorType.kBrushless);
   private final CANSparkMax m_rearRight = new CANSparkMax(2, MotorType.kBrushless);
@@ -54,8 +56,7 @@ public class Robot extends TimedRobot {
   private final ADXRS450_Gyro m_gyro = new ADXRS450_Gyro();
   private Pose2d m_pose = new Pose2d(5.0, 13.5, new Rotation2d());
 
-  private final double kDriveTick2Feet = 1.0 / 4096 * 6 * Math.PI / 12;
-  private final double kArmTick2Deg = 360.0 / 512 * 26 / 42 * 18 / 60 * 18 / 84;
+  private final double kDriveTick2Cm = (2 * Math.PI * 3) * 2.54;
 
   String trajectoryJSON = "output/Unnamed.wpilib.json";
   Trajectory trajectory = new Trajectory();
@@ -71,8 +72,6 @@ public class Robot extends TimedRobot {
   @Override
   public void robotInit() {
     m_drive.init();
-
-    m_gyro.calibrate();
     m_leftEncoder.setPosition(0);
     m_rightEncoder.setPosition(0);
     DataLogManager.start();
@@ -100,18 +99,15 @@ public class Robot extends TimedRobot {
   public void teleopInit() {
     m_timer.reset();
     m_timer.start();
+
+    m_leftEncoder.setPosition(0);
+    m_rightEncoder.setPosition(0);
   }
 
   /** This function is called periodically during teleoperated mode. */
   @Override
   public void teleopPeriodic() {
-
-    double leftPosition = m_leftEncoder.getPosition().getValue() * kDriveTick2Feet;
-    double rightPosition = m_rightEncoder.getPosition().getValue() * kDriveTick2Feet;
-    double distance = (leftPosition + rightPosition) / 2;
-
-    DataLogManager.log("distance:" + distance);
-    m_drive.drive(m_controller.getLeftY(), m_controller.getRightX());
+    m_drive.drive(m_controller.getLeftY(), m_controller.getLeftX());
 
   }
 
@@ -120,7 +116,10 @@ public class Robot extends TimedRobot {
   public void testInit() {
     m_timer.reset();
     m_timer.start();
-    m_gyro.calibrate();
+    // m_gyro.calibrate();
+
+    m_leftEncoder.setPosition(0);
+    m_rightEncoder.setPosition(0);
   }
 
   /** This function is called periodically during test mode. */
@@ -135,16 +134,18 @@ public class Robot extends TimedRobot {
      * DataLogManager.log(m_pose.toString());
      */
 
-    double leftPosition = m_leftEncoder.getPosition().getValue() * kDriveTick2Feet;
-    double rightPosition = m_rightEncoder.getPosition().getValue() * kDriveTick2Feet;
+    double leftPosition = m_leftEncoder.getPosition().getValue() * kDriveTick2Cm;
+    double rightPosition = m_rightEncoder.getPosition().getValue() * kDriveTick2Cm;
     double distance = (leftPosition + rightPosition) / 2;
+    if (m_controller.getAButton()) {
 
-    DataLogManager.log("distance:" + distance);
-    if (distance < 0.25) {
-      // m_drive.tankDrive(0.6, 0.6);
-
-    } else {
-      // m_drive.tankDrive(0, 0);
     }
+    if (distance < 150) {
+      m_drive.drive(-1, 0);
+    } else {
+      m_drive.stop();
+    }
+    DataLogManager.log("mesafe:" + distance);
+
   }
 }
