@@ -7,27 +7,19 @@ package frc.robot;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.XboxController;
-import edu.wpi.first.wpilibj.drive.DifferentialDrive;
-import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj.SPI.Port;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
-import edu.wpi.first.math.trajectory.Trajectory;
-import edu.wpi.first.wpilibj.ADXRS450_Gyro;
+import edu.wpi.first.math.kinematics.DifferentialDriveWheelPositions;
 import edu.wpi.first.wpilibj.DataLogManager;
-import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.SPI;
-
 import frc.robot.subsystems.drive.Drive;
-
-import javax.xml.crypto.Data;
-
-import com.ctre.phoenix.motorcontrol.FeedbackDevice;
 import com.ctre.phoenix6.hardware.CANcoder;
-import com.revrobotics.CANSparkMax;
-import com.revrobotics.CANSparkLowLevel.MotorType;
+import com.kauailabs.navx.frc.AHRS;
+import com.revrobotics.REVPhysicsSim;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -42,25 +34,20 @@ public class Robot extends TimedRobot {
 
   private final XboxController m_controller = new XboxController(0);
 
-  private final CANSparkMax m_rearLeft = new CANSparkMax(3, MotorType.kBrushless);
-  private final CANSparkMax m_rearRight = new CANSparkMax(2, MotorType.kBrushless);
-
-  private final CANSparkMax m_frontLeft = new CANSparkMax(1, MotorType.kBrushless);
-  private final CANSparkMax m_frontRight = new CANSparkMax(4, MotorType.kBrushless);
+  private final AHRS m_gyro = new AHRS(SPI.Port.kMXP);
+  private final Field2d m_field = new Field2d();
+  private final ChassisSpeeds m_speeds = new ChassisSpeeds(2, 0, Math.PI);
 
   private final CANcoder m_leftEncoder = new CANcoder(6);
   private final CANcoder m_rightEncoder = new CANcoder(5);
 
-  // private DifferentialDrive drive = new DifferentialDrive(, );
-
-  private final ADXRS450_Gyro m_gyro = new ADXRS450_Gyro();
-  private Pose2d m_pose = new Pose2d(5.0, 13.5, new Rotation2d());
+  private Pose2d m_pose = new Pose2d(1.88, 7.02, new Rotation2d());
 
   private final double kDriveTick2Cm = (2 * Math.PI * 3) * 2.54;
+  private final DifferentialDriveOdometry m_odometry = new DifferentialDriveOdometry(m_gyro.getRotation2d(),
+      m_leftEncoder.getPosition().getValue() * kDriveTick2Cm, m_rightEncoder.getPosition().getValue() * kDriveTick2Cm);
 
-  String trajectoryJSON = "output/Unnamed.wpilib.json";
-  Trajectory trajectory = new Trajectory();
-  public final Drive m_drive = new Drive(m_rearLeft, m_rearRight, m_frontLeft, m_frontRight, true); // normalde true
+  public final Drive m_drive = new Drive(m_odometry, m_speeds, false); // normalde false
 
   private final Timer m_timer = new Timer();
 
@@ -71,7 +58,6 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotInit() {
-    m_drive.init();
     m_leftEncoder.setPosition(0);
     m_rightEncoder.setPosition(0);
     DataLogManager.start();
@@ -83,6 +69,7 @@ public class Robot extends TimedRobot {
   public void autonomousInit() {
     m_timer.reset();
     m_timer.start();
+    m_drive.stop();
   }
 
   /** This function is called periodically during autonomous. */
@@ -102,13 +89,20 @@ public class Robot extends TimedRobot {
 
     m_leftEncoder.setPosition(0);
     m_rightEncoder.setPosition(0);
+    m_odometry.resetPosition(m_gyro.getRotation2d(), new DifferentialDriveWheelPositions(0, 0), m_pose);
+    SmartDashboard.putNumber("leftENCODER", m_leftEncoder.getPosition().getValue());
+    SmartDashboard.putData("pose2d", m_field);
+    SmartDashboard.putNumber("rightENCODER", m_rightEncoder.getPosition().getValue());
+    SmartDashboard.putNumber("Gyro", m_gyro.getAngle());
   }
 
   /** This function is called periodically during teleoperated mode. */
   @Override
   public void teleopPeriodic() {
-    m_drive.drive(m_controller.getLeftY(), m_controller.getLeftX());
-
+    m_drive.drive(-m_controller.getLeftY(), -m_controller.getLeftX());
+    m_drive.updateOdometry(m_gyro.getRotation2d(), m_leftEncoder.getPosition().getValue() * kDriveTick2Cm,
+        m_rightEncoder.getPosition().getValue() * kDriveTick2Cm);
+    m_field.setRobotPose(m_pose);
   }
 
   /** This function is called once each time the robot enters test mode. */
@@ -116,36 +110,48 @@ public class Robot extends TimedRobot {
   public void testInit() {
     m_timer.reset();
     m_timer.start();
-    // m_gyro.calibrate();
-
     m_leftEncoder.setPosition(0);
     m_rightEncoder.setPosition(0);
+    m_odometry.resetPosition(m_gyro.getRotation2d(), new DifferentialDriveWheelPositions(0, 0), m_pose);
+    SmartDashboard.putNumber("leftENCODER", m_leftEncoder.getPosition().getValue());
+    SmartDashboard.putData("pose2d", m_field);
+    SmartDashboard.putNumber("rightENCODER", m_rightEncoder.getPosition().getValue());
+    SmartDashboard.putNumber("Gyro", m_gyro.getAngle());
   }
 
   /** This function is called periodically during test mode. */
   @Override
   public void testPeriodic() {
 
+    m_drive.updateOdometry(m_gyro.getRotation2d(), m_leftEncoder.getPosition().getValue() * kDriveTick2Cm,
+        m_rightEncoder.getPosition().getValue() * kDriveTick2Cm);
+    m_field.setRobotPose(m_pose);
+    m_drive.feed();
+
     /*
-     * m_pose = m_odometry.update(m_gyro.getRotation2d(),
-     * m_leftEncoder.getPosition().getValueAsDouble(),
-     * m_rightEncoder.getPosition().getValueAsDouble());
+     * double leftPosition = m_leftEncoder.getPosition().getValue() * kDriveTick2Cm;
+     * double rightPosition = m_rightEncoder.getPosition().getValue() *
+     * kDriveTick2Cm;
+     * double distance = (leftPosition + rightPosition) / 2;
+     * double target = 25;
+     * double kError = target - distance;
+     * double kP = 1 / target;
+     * double kSpeed = kP * kError;
+     * // Proportional integral derivative
+     * if (m_controller.getAButton()) {
      * 
-     * DataLogManager.log(m_pose.toString());
+     * }
+     * if (distance < target) {
+     * m_drive.drive(kSpeed, 0);
+     * } else {
+     * m_drive.stop();
+     * }
+     * DataLogManager.log("mesafe:" + distance);
      */
+  }
 
-    double leftPosition = m_leftEncoder.getPosition().getValue() * kDriveTick2Cm;
-    double rightPosition = m_rightEncoder.getPosition().getValue() * kDriveTick2Cm;
-    double distance = (leftPosition + rightPosition) / 2;
-    if (m_controller.getAButton()) {
-
-    }
-    if (distance < 150) {
-      m_drive.drive(-1, 0);
-    } else {
-      m_drive.stop();
-    }
-    DataLogManager.log("mesafe:" + distance);
-
+  @Override
+  public void simulationPeriodic() {
+    REVPhysicsSim.getInstance().run();
   }
 }
