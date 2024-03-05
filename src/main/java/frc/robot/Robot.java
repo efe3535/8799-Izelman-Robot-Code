@@ -6,19 +6,23 @@ package frc.robot;
 
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.XboxController;
-import edu.wpi.first.wpilibj.smartdashboard.Field2d;
+import edu.wpi.first.wpilibj.PS4Controller;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
-import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
-import edu.wpi.first.math.kinematics.DifferentialDriveWheelPositions;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import edu.wpi.first.cameraserver.CameraServer;
+import edu.wpi.first.cscore.CvSink;
+import edu.wpi.first.cscore.CvSource;
+import edu.wpi.first.cscore.UsbCamera;
 import edu.wpi.first.wpilibj.DataLogManager;
-import edu.wpi.first.wpilibj.SPI;
+import frc.robot.commands.DriveForward;
 import frc.robot.subsystems.drive.Drive;
-import com.ctre.phoenix6.hardware.CANcoder;
-import com.kauailabs.navx.frc.AHRS;
+
+import org.opencv.core.Mat;
+import org.opencv.core.Point;
+import org.opencv.core.Scalar;
+import org.opencv.imgproc.Imgproc;
+
 import com.revrobotics.REVPhysicsSim;
 
 /**
@@ -32,24 +36,13 @@ import com.revrobotics.REVPhysicsSim;
  */
 public class Robot extends TimedRobot {
 
-  private final XboxController m_controller = new XboxController(0);
-
-  private final AHRS m_gyro = new AHRS(SPI.Port.kMXP);
-  private final Field2d m_field = new Field2d();
-  private final ChassisSpeeds m_speeds = new ChassisSpeeds(2, 0, Math.PI);
-
-  private final CANcoder m_leftEncoder = new CANcoder(6);
-  private final CANcoder m_rightEncoder = new CANcoder(5);
-
-  private Pose2d m_pose = new Pose2d(1.88, 7.02, new Rotation2d());
-
-  private final double kDriveTick2Cm = (2 * Math.PI * 3) * 2.54;
-  private final DifferentialDriveOdometry m_odometry = new DifferentialDriveOdometry(m_gyro.getRotation2d(),
-      m_leftEncoder.getPosition().getValue() * kDriveTick2Cm, m_rightEncoder.getPosition().getValue() * kDriveTick2Cm);
-
-  public final Drive m_drive = new Drive(m_odometry, m_speeds, false); // normalde false
+  private final PS4Controller m_controller = new PS4Controller(0);
 
   private final Timer m_timer = new Timer();
+  public final Drive m_drive = new Drive(false, m_timer); // normalde false
+  private double current_time;
+  private Command m_autonomousCommand;
+  Thread m_visionThread;
 
   /**
    * This function is run when the robot is first started up and should be used
@@ -58,10 +51,48 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotInit() {
-    m_leftEncoder.setPosition(0);
-    m_rightEncoder.setPosition(0);
     DataLogManager.start();
+    /*
+     * m_visionThread = new Thread(
+     * () -> {
+     * // Get the UsbCamera from CameraServer
+     * UsbCamera camera = CameraServer.startAutomaticCapture();
+     * // Set the resolution
+     * camera.setResolution(640, 480);
+     * 
+     * // Get a CvSink. This will capture Mats from the camera
+     * CvSink cvSink = CameraServer.getVideo();
+     * // Setup a CvSource. This will send images back to the Dashboard
+     * CvSource outputStream = CameraServer.putVideo("Rectangle", 640, 480);
+     * 
+     * // Mats are very memory expensive. Lets reuse this Mat.
+     * Mat mat = new Mat();
+     * 
+     * // This cannot be 'true'. The program will never exit if it is. This
+     * // lets the robot stop this thread when restarting robot code or
+     * // deploying.
+     * while (!Thread.interrupted()) {
+     * // Tell the CvSink to grab a frame from the camera and put it
+     * // in the source mat. If there is an error notify the output.
+     * if (cvSink.grabFrame(mat) == 0) {
+     * // Send the output the error.
+     * outputStream.notifyError(cvSink.getError());
+     * // skip the rest of the current iteration
+     * continue;
+     * }
+     * // Put a rectangle on the image
+     * Imgproc.rectangle(
+     * mat, new Point(100, 100), new Point(400, 400), new Scalar(255, 255, 255), 5);
+     * // Give the output stream a new image to display
+     * outputStream.putFrame(mat);
+     * }
+     * });
+     */
 
+  }
+
+  @Override
+  public void robotPeriodic() {
   }
 
   /** This function is run once each time the robot enters autonomous mode. */
@@ -69,14 +100,28 @@ public class Robot extends TimedRobot {
   public void autonomousInit() {
     m_timer.reset();
     m_timer.start();
-    m_drive.stop();
+    m_drive.idleCoast();
+    current_time = secs();
   }
 
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
-    // Drive for 3 seconds
+    if (secs() - current_time < 2) {
+      m_drive.drive(0.5, 0);
+    } else {
+      m_drive.stop();
+    }
+  }
 
+  @Override
+  public void simulationInit() {
+    m_drive.simInit();
+  }
+
+  @Override
+  public void simulationPeriodic() {
+    REVPhysicsSim.getInstance().run();
   }
 
   /**
@@ -87,22 +132,52 @@ public class Robot extends TimedRobot {
     m_timer.reset();
     m_timer.start();
 
-    m_leftEncoder.setPosition(0);
-    m_rightEncoder.setPosition(0);
-    m_odometry.resetPosition(m_gyro.getRotation2d(), new DifferentialDriveWheelPositions(0, 0), m_pose);
-    SmartDashboard.putNumber("leftENCODER", m_leftEncoder.getPosition().getValue());
-    SmartDashboard.putData("pose2d", m_field);
-    SmartDashboard.putNumber("rightENCODER", m_rightEncoder.getPosition().getValue());
-    SmartDashboard.putNumber("Gyro", m_gyro.getAngle());
+    m_drive.idleCoast();
+
+    if (m_autonomousCommand != null) {
+      m_autonomousCommand.cancel();
+    } // aman diyim otonom bitince hiç gerek yok böyle şeylere...
+
   }
 
   /** This function is called periodically during teleoperated mode. */
   @Override
   public void teleopPeriodic() {
-    m_drive.drive(-m_controller.getLeftY(), -m_controller.getLeftX());
-    m_drive.updateOdometry(m_gyro.getRotation2d(), m_leftEncoder.getPosition().getValue() * kDriveTick2Cm,
-        m_rightEncoder.getPosition().getValue() * kDriveTick2Cm);
-    m_field.setRobotPose(m_pose);
+    m_drive.drive(-m_controller.getLeftY() * 0.5, -m_controller.getLeftX() * 0.5);
+    // System.out.println("x:" + m_controller.getLeftY());
+    // m_drive.intakeMovement();
+    if (m_controller.getTriangleButton()) {
+      double start = secs();
+      m_drive.intakeMovement(false);
+    } else if (m_controller.getCircleButton()) {
+      m_drive.shooterMovement(false);
+      double currentSecs = secs();
+      while (secs() - currentSecs < 0.3)
+        ;
+      m_drive.intakeMovement(true);
+    } else if (m_controller.getCrossButton()) {
+      m_drive.intakeMovement(true);
+    } else if (m_controller.getSquareButton()) {
+      m_drive.shooterMovement(true);
+    } else if (m_controller.getR1Button()) {
+      m_drive.moveIntakeArmUntilSwitch();
+    } else {
+      m_drive.stopIntakeAndShoot();
+    }
+
+    if (m_controller.getR2Axis() > 0.125) {
+      m_drive.moveIntakeArm(0.2);
+    } else if (m_controller.getL2Axis() > 0.125) {
+      m_drive.moveIntakeArm(-0.2);
+    } else {
+      m_drive.stopIntakeArm();
+    }
+
+    m_drive.updatePose();
+
+    SmartDashboard.putData("field", m_drive.getField());
+    SmartDashboard.putNumber("gyro", m_drive.getGyro().getDegrees());
+    SmartDashboard.putNumber("intake arm position", m_drive.getIntakeArmPosition());
   }
 
   /** This function is called once each time the robot enters test mode. */
@@ -110,48 +185,17 @@ public class Robot extends TimedRobot {
   public void testInit() {
     m_timer.reset();
     m_timer.start();
-    m_leftEncoder.setPosition(0);
-    m_rightEncoder.setPosition(0);
-    m_odometry.resetPosition(m_gyro.getRotation2d(), new DifferentialDriveWheelPositions(0, 0), m_pose);
-    SmartDashboard.putNumber("leftENCODER", m_leftEncoder.getPosition().getValue());
-    SmartDashboard.putData("pose2d", m_field);
-    SmartDashboard.putNumber("rightENCODER", m_rightEncoder.getPosition().getValue());
-    SmartDashboard.putNumber("Gyro", m_gyro.getAngle());
+  }
+
+  public double secs() {
+    return m_timer.get();
   }
 
   /** This function is called periodically during test mode. */
   @Override
   public void testPeriodic() {
-
-    m_drive.updateOdometry(m_gyro.getRotation2d(), m_leftEncoder.getPosition().getValue() * kDriveTick2Cm,
-        m_rightEncoder.getPosition().getValue() * kDriveTick2Cm);
-    m_field.setRobotPose(m_pose);
-    m_drive.feed();
-
-    /*
-     * double leftPosition = m_leftEncoder.getPosition().getValue() * kDriveTick2Cm;
-     * double rightPosition = m_rightEncoder.getPosition().getValue() *
-     * kDriveTick2Cm;
-     * double distance = (leftPosition + rightPosition) / 2;
-     * double target = 25;
-     * double kError = target - distance;
-     * double kP = 1 / target;
-     * double kSpeed = kP * kError;
-     * // Proportional integral derivative
-     * if (m_controller.getAButton()) {
-     * 
-     * }
-     * if (distance < target) {
-     * m_drive.drive(kSpeed, 0);
-     * } else {
-     * m_drive.stop();
-     * }
-     * DataLogManager.log("mesafe:" + distance);
-     */
+    // m_drive.drive(0, 0.25);
+    SmartDashboard.putBoolean("switch", m_drive.getLimitSwitchOn());
   }
 
-  @Override
-  public void simulationPeriodic() {
-    REVPhysicsSim.getInstance().run();
-  }
 }
