@@ -51,7 +51,7 @@ public class Drive extends SubsystemBase {
     private final PIDController m_pidController = new PIDController(1, 0, 0);
     private final PIDController m_rotationController = new PIDController(0.5d, 0d, 0d);
     private final CANSparkMax intakeMotor = new CANSparkMax(6, MotorType.kBrushless);
-
+    private boolean completedMovement = false;
     private final CANSparkMax intakeArmMotor = new CANSparkMax(5, MotorType.kBrushless);
 
     private final WPI_VictorSPX leftShooter = new WPI_VictorSPX(9);
@@ -196,11 +196,22 @@ public class Drive extends SubsystemBase {
 
     }
 
+    public void moveIntakeArmUntilSwitchInit() {
+        completedMovement = false;
+    }
+
     public void moveIntakeArmUntilSwitch() {
-        while (getLimitSwitchOn()) {
-            intakeArmMotor.set(-0.2);
+        if (getLimitSwitchOn() && !completedMovement) {
+            intakeArmMotor.set(-0.22);
+        } else {
+            intakeArmMotor.stopMotor();
+            completedMovement = true;
         }
-        intakeArmMotor.set(0);
+
+    }
+
+    public boolean getMovementCompleted() {
+        return completedMovement;
     }
 
     public void shooterMovement(boolean reverse) {

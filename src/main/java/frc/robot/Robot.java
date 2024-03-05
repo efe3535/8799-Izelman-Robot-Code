@@ -100,7 +100,7 @@ public class Robot extends TimedRobot {
   public void autonomousInit() {
     m_timer.reset();
     m_timer.start();
-    m_drive.idleCoast();
+    m_drive.idleBrake();
     current_time = secs();
   }
 
@@ -160,11 +160,10 @@ public class Robot extends TimedRobot {
     } else if (m_controller.getSquareButton()) {
       m_drive.shooterMovement(true);
     } else if (m_controller.getR1Button()) {
-      m_drive.moveIntakeArmUntilSwitch();
+      m_drive.moveIntakeArmUntilSwitchInit();
     } else {
       m_drive.stopIntakeAndShoot();
     }
-
     if (m_controller.getR2Axis() > 0.125) {
       m_drive.moveIntakeArm(0.2);
     } else if (m_controller.getL2Axis() > 0.125) {
@@ -172,6 +171,9 @@ public class Robot extends TimedRobot {
     } else {
       m_drive.stopIntakeArm();
     }
+
+    if (!m_drive.getMovementCompleted())
+      m_drive.moveIntakeArmUntilSwitch();
 
     m_drive.updatePose();
 
