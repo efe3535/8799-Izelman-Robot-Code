@@ -161,8 +161,12 @@ public class Robot extends TimedRobot {
       m_drive.shooterMovement(true);
     } else if (m_controller.getR1Button()) {
       m_drive.moveIntakeArmUntilSwitchInit();
+    } else if (m_controller.getPOV() == 0) {
+      m_drive.moveHumanPlayer(0.33);
+    } else if (m_controller.getPOV() == 180) {
+      m_drive.moveHumanPlayer(-1);
     } else {
-      m_drive.stopIntakeAndShoot();
+      m_drive.stopIntakeShootAndHumanplayer();
     }
     if (m_controller.getR2Axis() > 0.125) {
       m_drive.moveIntakeArm(0.2);
@@ -197,7 +201,7 @@ public class Robot extends TimedRobot {
   @Override
   public void testPeriodic() {
     // m_drive.drive(0, 0.25);
-    SmartDashboard.putBoolean("switch", m_drive.getLimitSwitchOn());
+
   }
 
 }

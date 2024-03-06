@@ -55,6 +55,7 @@ public class Drive extends SubsystemBase {
     private final CANSparkMax intakeArmMotor = new CANSparkMax(5, MotorType.kBrushless);
 
     private final WPI_VictorSPX leftShooter = new WPI_VictorSPX(9);
+    private final WPI_VictorSPX humanPlayerTake = new WPI_VictorSPX(7);
     private final WPI_VictorSPX rightShooter = new WPI_VictorSPX(10);
 
     private final DigitalInput armLimitSwitch = new DigitalInput(0);
@@ -115,6 +116,10 @@ public class Drive extends SubsystemBase {
         this.rearLeft.setIdleMode(IdleMode.kBrake);
         this.frontRight.setIdleMode(IdleMode.kBrake);
         this.rearRight.setIdleMode(IdleMode.kBrake);
+    }
+
+    public void moveHumanPlayer(double speed) {
+        humanPlayerTake.set(speed);
     }
 
     public Drive(boolean reverse, Timer timer) {
@@ -220,10 +225,11 @@ public class Drive extends SubsystemBase {
 
     }
 
-    public void stopIntakeAndShoot() {
+    public void stopIntakeShootAndHumanplayer() {
         intakeMotor.stopMotor();
         leftShooter.stopMotor();
         rightShooter.stopMotor();
+        humanPlayerTake.stopMotor();
     }
 
     public Pose2d getPose() {
