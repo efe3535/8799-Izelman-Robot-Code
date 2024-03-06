@@ -57,7 +57,7 @@ public class Drive extends SubsystemBase {
     private final WPI_VictorSPX leftShooter = new WPI_VictorSPX(9);
     private final WPI_VictorSPX humanPlayerTake = new WPI_VictorSPX(7);
     private final WPI_VictorSPX rightShooter = new WPI_VictorSPX(10);
-
+    private final double armGearRatio = 53 + 1 / 3;
     private final DigitalInput armLimitSwitch = new DigitalInput(0);
     public boolean isReversed;
     private final AHRS m_gyro = new AHRS(SPI.Port.kMXP);
@@ -215,6 +215,14 @@ public class Drive extends SubsystemBase {
 
     }
 
+    public void miniArmMovement() {
+        double armEncoder = intakeArmMotor.getEncoder().getPosition();
+        while (intakeArmMotor.getEncoder().getPosition() < armEncoder + 53 / 72) {
+            intakeArmMotor.set(0.1);
+        }
+        intakeArmMotor.stopMotor();
+    }
+
     public boolean getMovementCompleted() {
         return completedMovement;
     }
@@ -283,17 +291,21 @@ public class Drive extends SubsystemBase {
     }
 
     public void turnDegreesCCW(double degrees) {
-        m_rotationController.setSetpoint(m_gyro.getRotation2d().getDegrees() + degrees);
-        // Turns the robot to face the desired direction
-        if (!m_rotationController.atSetpoint())
-            m_drive.arcadeDrive(0, m_rotationController.calculate(m_gyro.getRotation2d().getDegrees()));
+        double gyroDegrees = m_gyro.getRotation2d().getDegrees();
+
+        while (m_gyro.getRotation2d().getDegrees() < gyroDegrees + degrees) {
+            m_drive.arcadeDrive(0, 0.4);
+        }
+        m_drive.stopMotor();
     }
 
     public void turnDegreesCW(double degrees) {
-        m_rotationController.setSetpoint(m_gyro.getRotation2d().getDegrees() - degrees);
-        // Turns the robot to face the desired direction
-        if (!m_rotationController.atSetpoint())
-            m_drive.arcadeDrive(0, -m_rotationController.calculate(m_gyro.getRotation2d().getDegrees()));
+        double gyroDegrees = m_gyro.getRotation2d().getDegrees();
+
+        while (m_gyro.getRotation2d().getDegrees() > gyroDegrees - degrees) {
+            m_drive.arcadeDrive(0, -0.4);
+        }
+        m_drive.stopMotor();
     }
 
     public double getIntakeArmPosition() {

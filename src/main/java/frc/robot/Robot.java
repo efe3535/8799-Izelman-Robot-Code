@@ -101,6 +101,10 @@ public class Robot extends TimedRobot {
     m_timer.reset();
     m_timer.start();
     m_drive.idleBrake();
+    m_drive.moveIntakeArmUntilSwitchInit();
+    m_drive.moveIntakeArmUntilSwitch();
+    m_drive.miniArmMovement();
+    m_drive.shooterMovement(false);
     current_time = secs();
   }
 
