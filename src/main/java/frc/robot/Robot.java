@@ -9,6 +9,7 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.PS4Controller;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.wpilibj.DataLogManager;
@@ -33,6 +34,7 @@ public class Robot extends TimedRobot {
   public final Drive m_drive = new Drive(false, m_timer); // normalde false
   private double gyroDegrees = m_drive.gyroDegrees();
   private final PIDController m_gyroController = new PIDController(0.01, 0, 0);
+  public double timerStart;
 
   private Command m_autonomousCommand;
 
@@ -57,32 +59,24 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousInit() {
     m_timer.reset();
-    m_drive.idleBrake();
-    // m_drive.moveIntakeArmBlocking();
-    // m_drive.miniArmMovement();
-    m_drive.shooterMovementAuto(false);
-
     m_timer.start();
+    // timerStart = m_timer.get();
+    m_drive.shooterMovement(false);
 
-    first = m_timer.get();
+    if (m_timer.hasElapsed(1.5)) {
+      m_drive.intakeMovement(true);
+    }
 
-    /*
-     * yapılacaklar
-     * ileri gitmek için mesafeli enkoder
-     */
+    if (m_timer.hasElapsed(3)) {
+      m_drive.stopIntakeShootAndHumanplayer();
+    }
 
-    /////// current time en alta lütfen.
   }
 
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
-    m_drive.feed();
-    if (ortadayiz && m_timer.get() - first < 1.25) {
-      m_drive.drive(0.6, 0);
-    } else {
-      m_drive.stop();
-    }
+
   }
 
   @Override

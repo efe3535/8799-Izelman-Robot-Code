@@ -269,7 +269,8 @@ public class Drive extends SubsystemBase {
         leftShooter.set(reverse ? -0.33 : 0.75);
         rightShooter.set(reverse ? 0.33 : -0.75);
 
-        delay(1.5);
+        // delay(1.5);
+        // command basede geç
         leftShooter.stopMotor();
         rightShooter.stopMotor();
 
