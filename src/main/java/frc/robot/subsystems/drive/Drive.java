@@ -8,32 +8,23 @@ import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
 import edu.wpi.first.math.kinematics.DifferentialDriveWheelPositions;
 import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
-import edu.wpi.first.math.numbers.N2;
-import edu.wpi.first.math.system.LinearSystem;
 import edu.wpi.first.math.system.plant.DCMotor;
-import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.SPI;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 
-import edu.wpi.first.wpilibj.simulation.DifferentialDrivetrainSim;
-import edu.wpi.first.wpilibj.simulation.SimDeviceSim;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc.robot.Robot;
 import frc.robot.commands.DriveForward;
 
-import com.ctre.phoenix.motorcontrol.can.VictorSPX;
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
 import com.ctre.phoenix6.hardware.CANcoder;
 import com.kauailabs.navx.frc.AHRS;
-import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.commands.FollowPathRamsete;
 import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.util.ReplanningConfig;
@@ -48,16 +39,15 @@ public class Drive extends SubsystemBase {
     private final CANSparkMax frontRight = new CANSparkMax(4, MotorType.kBrushless);
     private final CANSparkMax frontLeft = new CANSparkMax(1, MotorType.kBrushless);
     private final CANSparkMax rearRight = new CANSparkMax(2, MotorType.kBrushless);
-    private final PIDController m_pidController = new PIDController(1, 0, 0);
-    private final PIDController m_rotationController = new PIDController(0.5d, 0d, 0d);
+
     private final CANSparkMax intakeMotor = new CANSparkMax(6, MotorType.kBrushless);
     private boolean completedMovement = false;
+    private boolean armMovementInit = false;
     private final CANSparkMax intakeArmMotor = new CANSparkMax(5, MotorType.kBrushless);
 
     private final WPI_VictorSPX leftShooter = new WPI_VictorSPX(9);
     private final WPI_VictorSPX humanPlayerTake = new WPI_VictorSPX(7);
     private final WPI_VictorSPX rightShooter = new WPI_VictorSPX(10);
-    private final double armGearRatio = 53 + 1 / 3;
     private final DigitalInput armLimitSwitch = new DigitalInput(0);
     public boolean isReversed;
     private final AHRS m_gyro = new AHRS(SPI.Port.kMXP);
@@ -67,11 +57,12 @@ public class Drive extends SubsystemBase {
     private final CANcoder m_rightEncoder = new CANcoder(11);
     private final Timer m_timer;
     private Pose2d m_pose = new Pose2d(1.88, 7.02, new Rotation2d());
-    private double initialGyro;
     private final double kDriveTick2Meters = 2.54 * 6 * Math.PI / 4096 * 100;
     private final DifferentialDriveOdometry m_odometry = new DifferentialDriveOdometry(m_gyro.getRotation2d(),
             m_leftEncoder.getPosition().getValue() * kDriveTick2Meters,
             m_rightEncoder.getPosition().getValue() * kDriveTick2Meters);
+
+    private final double maxIntakeArmDelta = 5.936;
 
     public void updatePose() {
         this.updateOdometry(m_gyro.getRotation2d(), m_leftEncoder.getPosition().getValue() * kDriveTick2Meters,
@@ -122,14 +113,23 @@ public class Drive extends SubsystemBase {
         humanPlayerTake.set(speed);
     }
 
+    public double getDistance() {
+        return (m_leftEncoder.getPosition().getValue() * kDriveTick2Meters
+                + m_rightEncoder.getPosition().getValue() * kDriveTick2Meters) / 2;
+    }
+
+    public void forwardMeters(double meters) {
+        double currentMeters = getDistance();
+        this.drive(0.6, 0);
+        while (getDistance() < currentMeters + meters)
+            ;
+        this.stop();
+
+    }
+
     public Drive(boolean reverse, Timer timer) {
 
         this.m_timer = timer;
-
-        this.frontLeft.restoreFactoryDefaults();
-        this.rearLeft.restoreFactoryDefaults();
-        this.frontRight.restoreFactoryDefaults();
-        this.rearRight.restoreFactoryDefaults();
 
         this.frontLeft.setIdleMode(IdleMode.kCoast);
         this.rearLeft.setIdleMode(IdleMode.kCoast);
@@ -145,8 +145,7 @@ public class Drive extends SubsystemBase {
         this.rearRight.follow(frontRight);
 
         this.m_drive = new DifferentialDrive(frontLeft, frontRight);
-        this.m_drive.setDeadband(0.05);
-        this.initialGyro = m_gyro.getRotation2d().getDegrees();
+        this.m_drive.setDeadband(0.15);
         m_leftEncoder.setPosition(0);
         m_rightEncoder.setPosition(0);
         m_odometry.resetPosition(m_gyro.getRotation2d(), new DifferentialDriveWheelPositions(0, 0), m_pose);
@@ -203,6 +202,17 @@ public class Drive extends SubsystemBase {
 
     public void moveIntakeArmUntilSwitchInit() {
         completedMovement = false;
+        armMovementInit = true;
+    }
+
+    public boolean getIntakeArmInit() {
+        return armMovementInit;
+    }
+
+    public void delay(double seconds) {
+        double time = m_timer.get();
+        while (m_timer.get() < time + seconds)
+            ;
     }
 
     public void moveIntakeArmUntilSwitch() {
@@ -210,16 +220,37 @@ public class Drive extends SubsystemBase {
             intakeArmMotor.set(-0.22);
         } else {
             intakeArmMotor.stopMotor();
+            delay(0.5);
+            miniArmMovement();
             completedMovement = true;
         }
 
     }
 
+    public void moveIntakeArmUntilEncoder() {
+        double currentEncoder = intakeArmMotor.getEncoder().getPosition();
+        double target = currentEncoder + maxIntakeArmDelta;
+        moveIntakeArm(0.2);
+        while (intakeArmMotor.getEncoder().getPosition() < target)
+            ;
+
+        stopIntakeArm();
+    }
+
+    public void moveIntakeArmBlocking() {
+        intakeArmMotor.set(-0.22);
+        while (getLimitSwitchOn())
+            ;
+        intakeArmMotor.stopMotor();
+        delay(0.5);
+        miniArmMovement();
+    }
+
     public void miniArmMovement() {
         double armEncoder = intakeArmMotor.getEncoder().getPosition();
-        while (intakeArmMotor.getEncoder().getPosition() < armEncoder + 53 / 72) {
-            intakeArmMotor.set(0.1);
-        }
+        intakeArmMotor.set(0.3);
+        while (intakeArmMotor.getEncoder().getPosition() < armEncoder + 1.6)
+            ;
         intakeArmMotor.stopMotor();
     }
 
@@ -230,6 +261,16 @@ public class Drive extends SubsystemBase {
     public void shooterMovement(boolean reverse) {
         leftShooter.set(reverse ? -0.33 : 0.75);
         rightShooter.set(reverse ? 0.33 : -0.75);
+
+    }
+
+    public void shooterMovementAuto(boolean reverse) {
+        leftShooter.set(reverse ? -0.33 : 0.75);
+        rightShooter.set(reverse ? 0.33 : -0.75);
+
+        delay(1.5);
+        leftShooter.stopMotor();
+        rightShooter.stopMotor();
 
     }
 
@@ -259,8 +300,6 @@ public class Drive extends SubsystemBase {
         // chassisSpeeds.vyMetersPerSecond));
         // SmartDashboard.putNumber("autorotation",
         // chassisSpeeds.omegaRadiansPerSecond);
-        DifferentialDriveKinematics kinematics = new DifferentialDriveKinematics(Units.inchesToMeters(27));
-        DifferentialDriveWheelSpeeds wheelSpeeds = kinematics.toWheelSpeeds(chassisSpeeds);
 
         double[] arr = { chassisSpeeds.vxMetersPerSecond, chassisSpeeds.vyMetersPerSecond,
                 chassisSpeeds.omegaRadiansPerSecond };
@@ -293,10 +332,14 @@ public class Drive extends SubsystemBase {
     public void turnDegreesCCW(double degrees) {
         double gyroDegrees = m_gyro.getRotation2d().getDegrees();
 
-        while (m_gyro.getRotation2d().getDegrees() < gyroDegrees + degrees) {
-            m_drive.arcadeDrive(0, 0.4);
+        m_drive.arcadeDrive(0, 0.1);
+        if (m_gyro.getRotation2d().getDegrees() >= gyroDegrees + degrees) {
+            m_drive.stopMotor();
         }
-        m_drive.stopMotor();
+    }
+
+    public double gyroDegrees() {
+        return m_gyro.getRotation2d().getDegrees();
     }
 
     public void turnDegreesCW(double degrees) {
@@ -342,8 +385,8 @@ public class Drive extends SubsystemBase {
         );
     }
 
-    public void drive(double leftMotor, double rightMotor) {
-        this.m_drive.arcadeDrive(leftMotor, rightMotor);
+    public void drive(double speed, double rotation) {
+        this.m_drive.arcadeDrive(speed, rotation);
     }
 
     public void updateOdometry(Rotation2d rotation, double leftDistance, double rightDistance) {
