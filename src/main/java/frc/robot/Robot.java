@@ -156,7 +156,7 @@ public class Robot extends TimedRobot {
     SmartDashboard.putData("field", m_drive.getField());
     SmartDashboard.putNumber("odo", m_drive.getDistance());
 
-    SmartDashboard.putNumber("gyro", m_drive.getGyro().getDegrees());
+    SmartDashboard.putNumber("gyro", m_drive.getGyro().getRotation2d().getDegrees());
     SmartDashboard.putNumber("intake arm position", m_drive.getIntakeArmPosition());
   }
 
@@ -167,11 +167,18 @@ public class Robot extends TimedRobot {
     m_drive.idleBrake();
     m_timer.start();
 
+    m_gyroController.enableContinuousInput(-180, 180);
+    m_gyroController.setTolerance(3, 5);
   }
 
   /** This function is called periodically during test mode. */
   @Override
   public void testPeriodic() {
+    m_gyroController.calculate(m_drive.getGyro().getAngle(), 30);
+    if (!m_gyroController.atSetpoint()) {
+      m_drive.drive(0, m_gyroController.calculate(m_drive.getGyro().getAngle(), 30));
+
+    }
   }
 
   public double secs() {

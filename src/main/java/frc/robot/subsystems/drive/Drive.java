@@ -24,6 +24,7 @@ import frc.robot.commands.DriveForward;
 
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
 import com.ctre.phoenix6.hardware.CANcoder;
+import com.kauailabs.navx.AHRSProtocol.AHRS_DATA_ACTION;
 import com.kauailabs.navx.frc.AHRS;
 import com.pathplanner.lib.commands.FollowPathRamsete;
 import com.pathplanner.lib.path.PathPlannerPath;
@@ -70,8 +71,8 @@ public class Drive extends SubsystemBase {
         m_field.setRobotPose(this.m_odometry.getPoseMeters());
     }
 
-    public Rotation2d getGyro() {
-        return m_gyro.getRotation2d();
+    public AHRS getGyro() {
+        return m_gyro;
     }
 
     public Field2d getField() {
