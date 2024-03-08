@@ -329,14 +329,16 @@ public class Drive extends SubsystemBase {
         return m_timer.get();
     }
 
-    public void turnDegreesCCW(double degrees) {
-        double gyroDegrees = m_gyro.getRotation2d().getDegrees();
-
-        m_drive.arcadeDrive(0, 0.1);
-        if (m_gyro.getRotation2d().getDegrees() >= gyroDegrees + degrees) {
-            m_drive.stopMotor();
-        }
-    }
+    /*
+     * public void turnDegreesCCW(double degrees) {
+     * double gyroDegrees = m_gyro.getRotation2d().getDegrees();
+     * 
+     * m_drive.arcadeDrive(0, 0.1);
+     * if (m_gyro.getRotation2d().getDegrees() >= gyroDegrees + degrees) {
+     * m_drive.stopMotor();
+     * }
+     * }
+     */
 
     public double gyroDegrees() {
         return m_gyro.getRotation2d().getDegrees();

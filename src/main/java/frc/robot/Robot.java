@@ -10,6 +10,7 @@ import edu.wpi.first.wpilibj.PS4Controller;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.cameraserver.CameraServer;
+import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.wpilibj.DataLogManager;
 import frc.robot.subsystems.drive.Drive;
 
@@ -31,6 +32,8 @@ public class Robot extends TimedRobot {
   private final Timer m_timer = new Timer();
   public final Drive m_drive = new Drive(false, m_timer); // normalde false
   private double gyroDegrees = m_drive.gyroDegrees();
+  private final PIDController m_gyroController = new PIDController(0.01, 0, 0);
+
   private Command m_autonomousCommand;
 
   /**
@@ -57,7 +60,6 @@ public class Robot extends TimedRobot {
     m_drive.idleBrake();
     // m_drive.moveIntakeArmBlocking();
     // m_drive.miniArmMovement();
-
     m_drive.shooterMovementAuto(false);
 
     m_timer.start();
@@ -164,7 +166,6 @@ public class Robot extends TimedRobot {
     m_timer.reset();
     m_drive.idleBrake();
     m_timer.start();
-    m_drive.moveIntakeArmUntilEncoder();
 
   }
 
