@@ -61,17 +61,17 @@ public class Robot extends TimedRobot {
     m_timer.reset();
     m_timer.start();
     // timerStart = m_timer.get();
-    /*
-     * m_drive.shooterMovement(false);
-     * 
-     * if (m_timer.hasElapsed(1.5)) {
-     * m_drive.intakeMovement(true);
-     * }
-     * 
-     * if (m_timer.hasElapsed(3)) {
-     * m_drive.stopIntakeShootAndHumanplayer();
-     * }
-     */
+
+    m_drive.shooterMovement(false);
+
+    if (m_timer.hasElapsed(1.5)) {
+      m_drive.intakeMovement(true);
+    }
+
+    if (m_timer.hasElapsed(3)) {
+      m_drive.stopIntakeShootAndHumanplayer();
+    }
+
   }
 
   /** This function is called periodically during autonomous. */
